@@ -1,115 +1,88 @@
 #pragma once
+#ifndef DISCORD_WINDOWS_HPP
+#define DISCORD_WINDOWS_HPP
+
 #define WIN32_LEAN_AND_MEAN
 #define NOMCX
 #define NOSERVICE
 #define NOIME
 #define NOMINMAX
+#include <cstdint>
 #include <Windows.h>
 
+// only enable wine layer on x86 and x86_64
+#if !defined(_M_IX86) && !defined(_X86_) && !defined(_M_X64) && !defined(_AMD64_)
+#define DISCORD_DISABLE_WINE_LAYER 1
+#else
+
+struct sockaddr_un {
+    unsigned short sun_family;
+    char sun_path[108];
+};
+
+#define AF_UNIX     1
+#define SOCK_STREAM 1
+#define F_SETFL     4
+#define O_RDONLY    00000000
+#define O_WRONLY    00000001
+#define O_CREAT     00000100
+#define O_APPEND    00002000
+#define O_NONBLOCK  00004000
+#define BUFSIZE 2048
+
+using socklen_t = uint32_t;
+using ssize_t = intptr_t;
+
+#endif
+
 namespace discord::platform {
-    inline size_t getProcessID() noexcept {
-        return ::GetCurrentProcessId();
+    // wine compatibility layer
+    #ifndef DISCORD_DISABLE_WINE_LAYER
+    namespace wine {
+        class WineConnector {
+            WineConnector() noexcept {
+                m_address.sun_family = AF_UNIX;
+            }
+
+        public:
+            static WineConnector& get() noexcept;
+            bool open() noexcept;
+            bool close() noexcept;
+
+            bool write(const void* data, size_t length) noexcept;
+            bool read(void* data, size_t length) noexcept;
+
+            [[nodiscard]] static bool isOpen() noexcept;
+            static void setOpen(bool open) noexcept;
+
+        private:
+            sockaddr_un m_address{};
+            int m_socket = -1;
+        };
     }
+    #endif
+
+    size_t getProcessID() noexcept;
 
     class PipeConnection {
         PipeConnection() noexcept = default;
+        friend class wine::WineConnector;
 
     public:
-        static PipeConnection& get() noexcept {
-            static PipeConnection instance;
-            return instance;
-        }
+        static PipeConnection& get() noexcept;
 
-        bool open() noexcept {
-            wchar_t pipeName[] = L"\\\\?\\pipe\\discord-ipc-0";
-            constexpr size_t pipeDigit = sizeof(pipeName) / sizeof(wchar_t) - 2;
-            while (true) {
-                m_pipe = ::CreateFileW(pipeName, GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
-                if (m_pipe != INVALID_HANDLE_VALUE) {
-                    m_isOpen = true;
-                    return true;
-                }
+        bool open() noexcept;
+        bool close() noexcept;
 
-                auto error = ::GetLastError();
-                if (error == ERROR_FILE_NOT_FOUND) {
-                    if (pipeName[pipeDigit] < L'9') {
-                        pipeName[pipeDigit]++;
-                        continue;
-                    }
-                } else if (error == ERROR_PIPE_BUSY) {
-                    if (!WaitNamedPipeW(pipeName, 10000)) {
-                        return false;
-                    }
-                    continue;
-                }
+        bool write(const void* data, size_t length) const noexcept;
+        bool read(void* data, size_t length) noexcept;
 
-                return false;
-            }
-        }
-
-        bool close() noexcept {
-            if (m_pipe != INVALID_HANDLE_VALUE) {
-                ::CloseHandle(m_pipe);
-                m_pipe = INVALID_HANDLE_VALUE;
-                m_isOpen = false;
-            }
-            return true;
-        }
-
-        [[nodiscard]] bool isOpen() const noexcept {
-            return m_isOpen;
-        }
-
-        bool write(const void* data, size_t length) const noexcept {
-            if (length == 0) {
-                return true;
-            }
-
-            if (m_pipe == INVALID_HANDLE_VALUE) {
-                return false;
-            }
-
-            if (!data) {
-                return false;
-            }
-
-            const auto bytesToWrite = static_cast<DWORD>(length);
-            DWORD bytesWritten = 0;
-            if (!::WriteFile(m_pipe, data, bytesToWrite, &bytesWritten, nullptr)) {
-                return false;
-            }
-            return bytesWritten == bytesToWrite;
-        }
-
-        bool read(void* data, size_t length) noexcept {
-            if (!data) {
-                return false;
-            }
-
-            if (m_pipe == INVALID_HANDLE_VALUE) {
-                return false;
-            }
-
-            DWORD bytesRead = 0;
-            if (!::PeekNamedPipe(m_pipe, nullptr, 0, nullptr, &bytesRead, nullptr)) {
-                this->close();
-                return false;
-            }
-
-            if (bytesRead < length) {
-                return false;
-            }
-
-            if (!::ReadFile(m_pipe, data, length, &bytesRead, nullptr)) {
-                this->close();
-                return false;
-            }
-
-            return true;
-        }
+        [[nodiscard]] bool isOpen() const noexcept { return m_isOpen; }
 
     private:
         HANDLE m_pipe = INVALID_HANDLE_VALUE;
         bool m_isOpen = false;
     };
 }
+
+#endif // DISCORD_WINDOWS_HPP

@@ -7,6 +7,11 @@ include(cmake/CPM.cmake)
 add_library(${PROJECT_NAME} STATIC src/discord-rpc.cpp src/serialization.cpp)
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
+# Windows has some extra code
+if (WIN32)
+  target_sources(${PROJECT_NAME} PRIVATE src/platform/windows.cpp)
+endif()
+
 CPMAddPackage("gh:fmtlib/fmt#11.0.2")
 CPMAddPackage("gh:stephenberry/glaze@4.4.3")
 target_link_libraries(${PROJECT_NAME} PRIVATE fmt glaze::glaze)

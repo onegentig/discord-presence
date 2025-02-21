@@ -120,8 +120,8 @@ namespace discord::platform {
         static constexpr int MSG_FLAGS = 0;
         #endif
 
-        int m_socket = -1;
         sockaddr_un m_address{};
+        int m_socket = -1;
         bool m_isOpen = false;
     };
 }
