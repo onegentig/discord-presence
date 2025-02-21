@@ -2,6 +2,7 @@
 #ifndef DISCORD_BACKOFF_HPP
 #define DISCORD_BACKOFF_HPP
 
+#include <algorithm>
 #include <random>
 
 namespace discord {

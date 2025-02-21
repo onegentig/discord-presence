@@ -9,7 +9,7 @@ A simple Discord Rich Presence library for C++ made from scratch.
 - [x] Buttons support
 - [x] Linux support
 - [x] MacOS support
-- [ ] Windows support
+- [x] Windows support
 - [ ] Out-of-the-box Wine support
 - [ ] Events (join, spectate, etc.)
 - [ ] Auto register (for steam games)
@@ -28,7 +28,7 @@ that uses a modern C++ style and has more features.
 - **Modern C++**: This library is written in C++23 and follows builder patterns as much as possible.
 - **Buttons**: Undocumented/unimplemented feature in discord, that allows you to add custom links to your presence.
 - **Project integration**: Say goodbye to copying library files or dealing with RapidJSON errors. This library can be easily integrated into your project without any hassle.
-- **Cross-platform**: This library is designed to work on all supported platforms, including Linux, macOS, and ~~Windows~~.
+- **Cross-platform**: This library is designed to work on all supported platforms, including Linux, macOS, and Windows.
 - ~~**Wine support**: Library provides internal layer to support Wine, no extra configuration needed.~~
 
 ---

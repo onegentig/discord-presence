@@ -2,6 +2,7 @@
 #ifndef DISCORD_RPC_HPP
 #define DISCORD_RPC_HPP
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <functional>

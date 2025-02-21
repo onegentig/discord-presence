@@ -77,6 +77,10 @@ namespace discord {
 
         [[nodiscard]] bool isOpen() const { return m_state == State::Connected; }
 
+        void sendError() const {
+            RPCManager::get().invokeOnErrored(toInt(m_lastError), m_lastErrorMessage);
+        }
+
         void open(std::string_view appID) noexcept {
             if (m_state == State::Connected) {
                 return;
@@ -93,10 +97,11 @@ namespace discord {
                 }
 
                 HandshakeResponse packet;
-                if (auto res = glz::read<glz::opts{.error_on_unknown_keys = false}>(packet, buffer)) {
+                if (glz::read<glz::opts{.error_on_unknown_keys = false}>(packet, buffer)) {
                     m_lastError = ErrorCode::ReadCorrupt;
                     m_lastErrorMessage = "Failed to read handshake response";
                     this->close();
+                    sendError();
                     return;
                 }
 
@@ -104,6 +109,7 @@ namespace discord {
                     m_lastError = ErrorCode::ReadCorrupt;
                     m_lastErrorMessage = "Unexpected handshake response";
                     this->close();
+                    sendError();
                     return;
                 }
 
@@ -165,6 +171,7 @@ namespace discord {
                         m_lastError = ErrorCode::PipeClosed;
                         m_lastErrorMessage = "Pipe closed";
                         this->close();
+                        sendError();
                     }
                     return false;
                 }
@@ -176,6 +183,7 @@ namespace discord {
                         m_lastError = ErrorCode::ReadCorrupt;
                         m_lastErrorMessage = "Partial data in frame";
                         this->close();
+                        sendError();
                         return false;
                     }
                     m_frame.data[m_frame.length] = '\0';
@@ -189,12 +197,14 @@ namespace discord {
                     case Opcode::Close: {
                         buffer.assign(reinterpret_cast<char*>(m_frame.data), m_frame.length);
                         ClosePacket packet;
-                        if (auto res = glz::read<glz::opts{.error_on_unknown_keys = false}>(packet, buffer)) {
+                        if (glz::read<glz::opts{.error_on_unknown_keys = false}>(packet, buffer)) {
                             m_lastError = ErrorCode::ReadCorrupt;
                             m_lastErrorMessage = "Failed to read close packet";
+                            sendError();
                         } else {
                             m_lastError = toErr(packet.code);
                             m_lastErrorMessage = packet.message;
+                            sendError();
                         }
                         this->close();
                         return false;
@@ -212,6 +222,7 @@ namespace discord {
                         m_lastError = ErrorCode::ReadCorrupt;
                         m_lastErrorMessage = "Bad IPC opcode";
                         this->close();
+                        sendError();
                         return false;
                     }
                 }

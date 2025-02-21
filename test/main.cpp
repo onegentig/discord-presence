@@ -48,12 +48,12 @@ static void updatePresence() {
         .setPartySize(1)
         .setPartyMax(6)
         .setPartyPrivacy(discord::PartyPrivacy::Public)
-        // .setButton1("Click me!", "https://google.com/")
-        // .setButton2("Dont click me!", "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        .setButton1("Click me!", "https://google.com/")
+        .setButton2("Dont click me!", "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
         // Buttons conflict with join/spectate secrets, you can't have both
-        .setMatchSecret("xyzzy")
-        .setJoinSecret("join")
-        .setSpectateSecret("look")
+        // .setMatchSecret("xyzzy")
+        // .setJoinSecret("join")
+        // .setSpectateSecret("look")
         .setInstance(false)
         .refresh();
 }

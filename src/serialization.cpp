@@ -3,21 +3,6 @@
 #include <discord-rpc.hpp>
 #include <fmt/format.h>
 
-template <>
-struct glz::meta<discord::Presence::Button> {
-    using T = discord::Presence::Button;
-    using A = std::array<std::pair<std::string, std::string>, 2>;
-    static constexpr auto value = [](auto&& self) -> std::optional<A> {
-        if (self.isEnabled()) {
-            return A {
-                std::pair{"label", self.getLabel()},
-                std::pair{"url", self.getURL()}
-            };
-        }
-        return std::nullopt;
-    };
-};
-
 struct Timestamps {
     std::optional<int64_t> start;
     std::optional<int64_t> end;
@@ -47,16 +32,16 @@ struct Assets {
 
 struct Party {
     std::optional<const std::string*> id;
-    int size;
-    int max;
+    std::optional<std::array<int, 2>> size;
     discord::PartyPrivacy privacy;
+
     constexpr Party(
         std::string const& id,
         int size, int max,
         discord::PartyPrivacy privacy
-    ) noexcept
-        : size(size), max(max), privacy(privacy) {
+    ) noexcept : privacy(privacy) {
         if (!id.empty()) { this->id = &id; }
+        if (size && max) { this->size = std::array{size, max}; }
     }
 };
 
@@ -73,6 +58,17 @@ struct Secrets {
         if (!join.empty()) { this->join = &join; }
         if (!spectate.empty()) { this->spectate = &spectate; }
     }
+};
+
+struct Button {
+    const std::string* label;
+    const std::string* url;
+    constexpr Button(std::string const& label, std::string const& url) noexcept {
+        if (!label.empty()) { this->label = &label; }
+        if (!url.empty()) { this->url = &url; }
+    }
+    constexpr Button(discord::Presence::Button const& button) noexcept
+        : label(&button.getLabel()), url(&button.getURL()) {}
 };
 
 template <>
@@ -101,7 +97,6 @@ struct glz::meta<Party> {
     static constexpr auto value = object(
         "id", &T::id,
         "size", &T::size,
-        "max", &T::max,
         "privacy", &T::privacy
     );
 };
@@ -113,6 +108,15 @@ struct glz::meta<Secrets> {
         "match", &T::match,
         "join", &T::join,
         "spectate", &T::spectate
+    );
+};
+
+template <>
+struct glz::meta<Button> {
+    using T = Button;
+    static constexpr auto value = object(
+        "label", &T::label,
+        "url", &T::url
     );
 };
 
@@ -179,15 +183,24 @@ struct glz::meta<discord::Presence> {
 
             return std::nullopt;
         },
-        "buttons", [](auto&& self) {
-            std::vector<discord::Presence::Button> buttons;
+        "buttons", [](auto&& self) -> std::optional<std::vector<Button>> {
+            auto& btn1 = self.getButton1();
+            auto& btn2 = self.getButton2();
+
+            if (!btn1.isEnabled() && !btn2.isEnabled()) {
+                return std::nullopt;
+            }
+
+            // if secrets are set, buttons are disabled
+            if (!self.getMatchSecret().empty() || !self.getJoinSecret().empty() || !self.getSpectateSecret().empty()) {
+                return std::nullopt;
+            }
+
+            std::vector<Button> buttons;
             buttons.reserve(2);
-            if (auto& btn1 = self.getButton1(); btn1.isEnabled()) {
-                buttons.push_back(btn1);
-            }
-            if (auto& btn2 = self.getButton2(); btn2.isEnabled()) {
-                buttons.push_back(btn2);
-            }
+            if (btn1.isEnabled()) { buttons.emplace_back(btn1); }
+            if (btn2.isEnabled()) { buttons.emplace_back(btn2); }
+
             return buttons;
         },
         "instance", [](auto&& self) { return self.getInstance(); }
