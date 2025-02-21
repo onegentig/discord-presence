@@ -67,8 +67,6 @@ struct Button {
         if (!label.empty()) { this->label = &label; }
         if (!url.empty()) { this->url = &url; }
     }
-    constexpr Button(discord::Presence::Button const& button) noexcept
-        : label(&button.getLabel()), url(&button.getURL()) {}
 };
 
 template <>
@@ -198,8 +196,8 @@ struct glz::meta<discord::Presence> {
 
             std::vector<Button> buttons;
             buttons.reserve(2);
-            if (btn1.isEnabled()) { buttons.emplace_back(btn1); }
-            if (btn2.isEnabled()) { buttons.emplace_back(btn2); }
+            if (btn1.isEnabled()) { buttons.emplace_back(btn1.getLabel(), btn1.getURL()); }
+            if (btn2.isEnabled()) { buttons.emplace_back(btn2.getLabel(), btn2.getURL()); }
 
             return buttons;
         },

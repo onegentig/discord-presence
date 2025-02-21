@@ -9,11 +9,10 @@
 #elif defined(_MSC_VER) // x86_64 (MSVC)
 int wine_close(uint32_t fd);
 int wine_open(const char* path, int flags, int mode);
-int wine_read(uint32_t fd, void* buffer, uint32_t count);
+ssize_t wine_read(uint32_t fd, void* buffer, size_t count);
+ssize_t wine_write(uint32_t fd, const void* buf, size_t count);
 int wine_socket(int domain, int type, int protocol);
 int wine_connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen);
-int wine_send(int sockfd, const void* buf, size_t len, int flags);
-int wine_recv(int sockfd, void* buf, size_t len, int flags);
 int wine_fcntl(int fd, int cmd, ...);
 #endif
 #endif
