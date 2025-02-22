@@ -7,13 +7,15 @@
 #elif defined(__GNUC__) || defined(__clang__) // x86_64 (GCC/Clang)
 #include "wine_gcc.hpp"
 #elif defined(_MSC_VER) // x86_64 (MSVC)
+extern "C" {
 int wine_close(uint32_t fd);
 int wine_open(const char* path, int flags, int mode);
 ssize_t wine_read(uint32_t fd, void* buffer, size_t count);
 ssize_t wine_write(uint32_t fd, const void* buf, size_t count);
 int wine_socket(int domain, int type, int protocol);
 int wine_connect(int sockfd, const struct sockaddr* addr, socklen_t addrlen);
-int wine_fcntl(int fd, int cmd, ...);
+int wine_fcntl(int fd, int cmd, int arg);
+}
 #endif
 #endif
 
