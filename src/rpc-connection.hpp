@@ -73,6 +73,16 @@ namespace discord {
             uint8_t data[MaxDataSize];
 
             [[nodiscard]] size_t size() const noexcept { return length + HeaderSize; }
+
+            void setMessage(Opcode opcode, size_t length, uint8_t const* data) noexcept {
+                this->opcode = opcode;
+                this->length = std::min(length, MaxDataSize);
+                std::memcpy(this->data, data, length);
+            }
+
+            void setMessage(Opcode opcode, std::string_view data) noexcept {
+                return this->setMessage(opcode, data.size(), reinterpret_cast<uint8_t const*>(data.data()));
+            }
         };
 
         [[nodiscard]] bool isOpen() const { return m_state == State::Connected; }
@@ -118,13 +128,13 @@ namespace discord {
                 return;
             }
 
-            m_frame.opcode = Opcode::Handshake;
-            m_frame.length = serializeHandshake(
-                m_frame.data, MessageFrame::MaxDataSize,
+            m_frame->opcode = Opcode::Handshake;
+            m_frame->length = serializeHandshake(
+                m_frame->data, MessageFrame::MaxDataSize,
                 1, appID
             );
 
-            if (platform::PipeConnection::get().write(&m_frame, m_frame.size())) {
+            if (platform::PipeConnection::get().write(m_frame.get(), m_frame->size())) {
                 m_state = State::SentHandshake;
             } else {
                 this->close();
@@ -142,11 +152,9 @@ namespace discord {
                 return false;
             }
 
-            m_frame.opcode = Opcode::Frame;
-            m_frame.length = std::min(buffer.size(), MessageFrame::MaxDataSize);
-            std::memcpy(m_frame.data, buffer.data(), m_frame.length);
+            m_frame->setMessage(Opcode::Frame, buffer);
 
-            if (!platform::PipeConnection::get().write(&m_frame, m_frame.size())) {
+            if (!platform::PipeConnection::get().write(m_frame.get(), m_frame->size())) {
                 this->close();
                 return false;
             }
@@ -165,7 +173,7 @@ namespace discord {
             auto& conn = platform::PipeConnection::get();
             do {
                 // Read header
-                bool success = conn.read(&m_frame, MessageFrame::HeaderSize);
+                bool success = conn.read(m_frame.get(), MessageFrame::HeaderSize);
                 if (!success) {
                     if (!conn.isOpen()) {
                         m_lastError = ErrorCode::PipeClosed;
@@ -177,8 +185,8 @@ namespace discord {
                 }
 
                 // Read data
-                if (m_frame.length > 0) {
-                    success = conn.read(m_frame.data, m_frame.length);
+                if (m_frame->length > 0) {
+                    success = conn.read(m_frame->data, m_frame->length);
                     if (!success) {
                         m_lastError = ErrorCode::ReadCorrupt;
                         m_lastErrorMessage = "Partial data in frame";
@@ -186,16 +194,16 @@ namespace discord {
                         sendError();
                         return false;
                     }
-                    m_frame.data[m_frame.length] = '\0';
+                    m_frame->data[m_frame->length] = '\0';
                 }
 
-                switch (m_frame.opcode) {
+                switch (m_frame->opcode) {
                     case Opcode::Frame: {
-                        buffer.assign(reinterpret_cast<char*>(m_frame.data), m_frame.length);
+                        buffer.assign(reinterpret_cast<char*>(m_frame->data), m_frame->length);
                         return true;
                     }
                     case Opcode::Close: {
-                        buffer.assign(reinterpret_cast<char*>(m_frame.data), m_frame.length);
+                        buffer.assign(reinterpret_cast<char*>(m_frame->data), m_frame->length);
                         ClosePacket packet;
                         if (glz::read<glz::opts{.error_on_unknown_keys = false}>(packet, buffer)) {
                             m_lastError = ErrorCode::ReadCorrupt;
@@ -210,8 +218,8 @@ namespace discord {
                         return false;
                     }
                     case Opcode::Ping: {
-                        m_frame.opcode = Opcode::Pong;
-                        if (!conn.write(&m_frame, m_frame.size())) {
+                        m_frame->opcode = Opcode::Pong;
+                        if (!conn.write(m_frame.get(), m_frame->size())) {
                             this->close();
                             return false;
                         }
@@ -229,11 +237,11 @@ namespace discord {
             } while (true);
         }
 
-        MessageFrame& getFrame() noexcept { return m_frame; }
+        [[nodiscard]] MessageFrame& getFrame() const noexcept { return *m_frame; }
 
     private:
         State m_state = State::Disconnected;
-        MessageFrame m_frame{};
+        std::unique_ptr<MessageFrame> m_frame = std::make_unique<MessageFrame>();
         ErrorCode m_lastError = ErrorCode::Success;
         std::string m_lastErrorMessage{};
     };
