@@ -63,10 +63,7 @@ struct Secrets {
 struct Button {
     const std::string* label;
     const std::string* url;
-    constexpr Button(std::string const& label, std::string const& url) noexcept {
-        if (!label.empty()) { this->label = &label; }
-        if (!url.empty()) { this->url = &url; }
-    }
+    constexpr Button(std::string const& label, std::string const& url) noexcept : label(&label), url(&url) {}
 };
 
 template <>
@@ -142,18 +139,6 @@ struct glz::meta<discord::Presence> {
 
             if (!large_image.empty() || !large_text.empty() || !small_image.empty() || !small_text.empty()) {
                 return Assets {large_image, large_text, small_image, small_text};
-            }
-
-            return std::nullopt;
-        },
-        "party", [](auto&& self) -> std::optional<Party> {
-            auto& id = self.getPartyID();
-            auto size = self.getPartySize();
-            auto max = self.getPartyMax();
-            auto privacy = self.getPartyPrivacy();
-
-            if (!id.empty() || size || max || privacy != discord::PartyPrivacy::Private) {
-                return Party {id, size, max, privacy};
             }
 
             return std::nullopt;
