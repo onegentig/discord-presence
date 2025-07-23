@@ -30,6 +30,21 @@ namespace discord {
         Public  = 1,
     };
 
+    enum class ActivityType : int32_t {
+        Game = 0,
+        Streaming = 1,
+        Listening = 2,
+        Watching = 3,
+        Custom = 4, // Note: only works for bot accounts
+        Competing = 5,
+    };
+
+    enum class StatusDisplayType {
+        Name = 0,
+        State = 1,
+        Details = 2,
+    };
+
     class Presence {
     public:
         #define GENERATE_GETSET_LRVALUE(type, name, member) \
@@ -118,6 +133,8 @@ namespace discord {
         GENERATE_GETSET_VALUE(int32_t, PartySize, partySize)
         GENERATE_GETSET_VALUE(int32_t, PartyMax, partyMax)
         GENERATE_GETSET_VALUE(PartyPrivacy, PartyPrivacy, partyPrivacy)
+        GENERATE_GETSET_VALUE(ActivityType, ActivityType, activityType)
+        GENERATE_GETSET_VALUE(StatusDisplayType, StatusDisplayType, statusDisplayType)
         GENERATE_GETSET_LRVALUE(std::string, MatchSecret, matchSecret)
         GENERATE_GETSET_LRVALUE(std::string, JoinSecret, joinSecret)
         GENERATE_GETSET_LRVALUE(std::string, SpectateSecret, spectateSecret)
@@ -148,6 +165,8 @@ namespace discord {
         int32_t m_partySize = 0;
         int32_t m_partyMax = 0;
         PartyPrivacy m_partyPrivacy = PartyPrivacy::Private;
+        ActivityType m_activityType = ActivityType::Game;
+        StatusDisplayType m_statusDisplayType = StatusDisplayType::Name;
         std::string m_matchSecret;
         std::string m_joinSecret;
         std::string m_spectateSecret;

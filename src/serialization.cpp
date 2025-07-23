@@ -186,7 +186,9 @@ struct glz::meta<discord::Presence> {
 
             return buttons;
         },
-        "instance", [](auto&& self) { return self.getInstance(); }
+        "instance", [](auto&& self) { return self.getInstance(); },
+        "type", [](auto&& self) { return self.getActivityType(); },
+        "status_display_type", [](auto&& self) { return self.getStatusDisplayType(); }
     );
 };
 
