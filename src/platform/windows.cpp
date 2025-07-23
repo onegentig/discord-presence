@@ -33,7 +33,7 @@ namespace wine {
     }
 
     static std::string convertWinePathToWindows(std::string const& unixPath) noexcept {
-        std::string command = "winepath -w \"" + unixPath + "\"";
+        auto command = fmt::format("winepath -w \"{}\"", unixPath);
 
         HANDLE hReadPipe, hWritePipe;
         SECURITY_ATTRIBUTES sa = {sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
@@ -227,7 +227,7 @@ namespace discord::platform {
             UnixAddr addr{};
             addr.sun_family = AF_UNIX;
 
-            std::strncpy(addr.sun_path, socketPath.c_str(), sizeof(addr.sun_path) - 1);
+            std::memcpy(addr.sun_path, socketPath.c_str(), std::min(socketPath.size(), sizeof(addr.sun_path) - 1));
 
             if (::connect(socket, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0) {
                 m_pipe = reinterpret_cast<HANDLE>(socket);
