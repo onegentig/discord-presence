@@ -28,8 +28,15 @@ namespace discord::platform {
         [[nodiscard]] bool isOpen() const noexcept { return m_isOpen; }
 
     private:
+        // Unix methods for Wine compatibility
+        bool openUnix() noexcept;
+        bool closeUnix() noexcept;
+        bool writeUnix(const void* data, size_t length) const noexcept;
+        bool readUnix(void* data, size_t length) noexcept;
+
         HANDLE m_pipe = INVALID_HANDLE_VALUE;
         bool m_isOpen = false;
+        bool m_useWineFallback = false;
     };
 }
 
