@@ -39,7 +39,7 @@ static void updatePresence() {
 
     rpc.getPresence()
         .setState("West of House")
-        .setActivityType(discord::ActivityType::Competing)
+        .setActivityType(discord::ActivityType::Game)
         .setStatusDisplayType(discord::StatusDisplayType::State)
         .setDetails(fmt::format("Frustration Level: {}", FrustrationLevel))
         .setStartTimestamp(StartTime)

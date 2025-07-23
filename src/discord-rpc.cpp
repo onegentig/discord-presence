@@ -26,7 +26,7 @@ namespace discord {
             m_running.store(true);
             m_thread = std::thread(
                 [this]() {
-                    const auto timeout = std::chrono::milliseconds(500);
+                    constexpr auto timeout = std::chrono::milliseconds(500);
                     auto& rpc = RPCManager::get();
                     rpc.update();
                     while (m_running.load()) {
@@ -55,6 +55,10 @@ namespace discord {
         std::condition_variable m_ioReady{};
     };
     #endif
+
+    Presence& Presence::get() noexcept {
+        return RPCManager::get().getPresence();
+    }
 
     Presence& Presence::clear() noexcept {
         m_state.clear();
@@ -141,18 +145,16 @@ namespace discord {
         } while (true);
 
         // writing
-        if (m_updatePresence.exchange(false)) {
-            std::string presence;
-            {
-                std::lock_guard lock(m_queuePresenceMutex);
-                presence = m_queuedPresence;
-            }
-
-            if (!conn.write(presence)) {
-                // requeue
-                std::lock_guard lock(m_queuePresenceMutex);
-                m_queuedPresence = presence;
-                m_updatePresence.exchange(true);
+        // using size to avoid going into infinite loop when requeuing commands
+        auto size = m_commandQueue.size();
+        if (size > 0) {
+            for (size_t i = 0; i < size; ++i) {
+                if (auto cmd = m_commandQueue.pop()) {
+                    if (!conn.write(*cmd)) {
+                        // requeue
+                        m_commandQueue.push(std::move(*cmd));
+                    }
+                }
             }
         }
 
@@ -160,12 +162,10 @@ namespace discord {
     }
 
     RPCManager& RPCManager::refresh() noexcept {
-        // copy the presence to queue
-        {
-            std::lock_guard lock(m_queuePresenceMutex);
-            serializePresence(m_queuedPresence, m_presence, m_processID, m_nonce++);
-            m_updatePresence.exchange(true);
-        }
+        // add the presence to queue
+        auto& msg = m_commandQueue.prepare();
+        serializePresence(msg, m_presence, m_processID, m_nonce++);
+        m_commandQueue.finish();
 
         // notify the io worker
         if (m_ioWorker) { m_ioWorker->notify(); }
@@ -176,12 +176,10 @@ namespace discord {
     RPCManager& RPCManager::clearPresence() noexcept {
         m_presence.clear();
 
-        // copy the presence to queue
-        {
-            std::lock_guard lock(m_queuePresenceMutex);
-            serializeEmptyPresence(m_queuedPresence, m_processID, m_nonce++);
-            m_updatePresence.exchange(true);
-        }
+        // add the presence to queue
+        auto& msg = m_commandQueue.prepare();
+        serializeEmptyPresence(msg, m_processID, m_nonce++);
+        m_commandQueue.finish();
 
         // notify the io worker
         if (m_ioWorker) { m_ioWorker->notify(); }

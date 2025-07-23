@@ -5,7 +5,7 @@ project(discord-rpc)
 set(CMAKE_CXX_STANDARD 23)
 include(cmake/CPM.cmake)
 
-add_library(${PROJECT_NAME} STATIC src/discord-rpc.cpp src/serialization.cpp)
+add_library(${PROJECT_NAME} STATIC src/discord-rpc.cpp src/serialization.cpp src/command-queue.cpp)
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
 # Windows has some extra code
