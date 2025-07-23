@@ -10,7 +10,7 @@
 #include <mutex>
 #include <string>
 
-#include "discord-rpc/commands.hpp"
+#include "discord-rpc/command-queue.hpp"
 #include "discord-rpc/presence.hpp"
 
 namespace discord {
