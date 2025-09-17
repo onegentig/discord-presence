@@ -90,6 +90,20 @@ namespace discord::platform {
         return ::GetCurrentProcessId();
     }
 
+    PipeConnection::PipeConnection() noexcept {
+        if (wine::isWine()) {
+            WSADATA wsaData;
+            ::WSAStartup(MAKEWORD(2, 2), &wsaData);
+        }
+    }
+
+    PipeConnection::~PipeConnection() noexcept {
+        this->close();
+        if (wine::isWine()) {
+            ::WSACleanup();
+        }
+    }
+
     PipeConnection& PipeConnection::get() noexcept {
         static PipeConnection instance;
         return instance;

@@ -14,7 +14,8 @@ namespace discord::platform {
     size_t getProcessID() noexcept;
 
     class PipeConnection {
-        PipeConnection() noexcept = default;
+        PipeConnection() noexcept;
+        ~PipeConnection() noexcept;
 
     public:
         static PipeConnection& get() noexcept;
