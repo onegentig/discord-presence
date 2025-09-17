@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <fcntl.h>
 #include <unistd.h>
 #include <fmt/format.h>
@@ -11,15 +12,39 @@ namespace discord::platform {
         return ::getpid();
     }
 
-    inline const char* getTempPath() noexcept {
-        static const char* path = []() {
-            const char* tmp = ::getenv("XDG_RUNTIME_DIR");
+    inline char const* getTempPath() noexcept {
+        static char const* path = []() {
+            char const* tmp = ::getenv("XDG_RUNTIME_DIR");
             tmp = tmp ? tmp : ::getenv("TMPDIR");
             tmp = tmp ? tmp : ::getenv("TMP");
             tmp = tmp ? tmp : ::getenv("TEMP");
             return tmp ? tmp : "/tmp";
         }();
         return path;
+    }
+
+    inline std::array<std::string, 4> const& getCandidatePaths() {
+        static std::array<std::string, 4> paths = []() {
+            char const* base = ::getenv("XDG_RUNTIME_DIR");
+            if (!base) {
+                auto runUser = fmt::format("/run/user/{}", ::getuid());
+                if (::access(runUser.c_str(), F_OK) == 0) {
+                    base = runUser.c_str();
+                } else {
+                    base = getTempPath();
+                }
+            }
+
+            std::array<std::string, 4> result = {
+                base,
+                fmt::format("{}/snap.discord", base),
+                fmt::format("{}/app/com.discordapp.Discord", base),
+                fmt::format("{}/app/com.discordapp.DiscordCanary", base),
+            };
+
+            return result;
+        }();
+        return paths;
     }
 
     class PipeConnection {
@@ -49,11 +74,13 @@ namespace discord::platform {
             ::setsockopt(m_socket, SOL_SOCKET, SO_NOSIGPIPE, &optval, sizeof(optval));
             #endif
 
-            for (int i = 0; i < 10; ++i) {
-                fmt::format_to(m_address.sun_path, "{}/discord-ipc-{}", getTempPath(), i);
-                if (::connect(m_socket, reinterpret_cast<sockaddr*>(&m_address), sizeof(m_address)) == 0) {
-                    m_isOpen = true;
-                    return true;
+            for (auto& dir : getCandidatePaths()) {
+                for (int i = 0; i < 10; ++i) {
+                    fmt::format_to(m_address.sun_path, "{}/discord-ipc-{}", dir, i);
+                    if (::connect(m_socket, reinterpret_cast<sockaddr*>(&m_address), sizeof(m_address)) == 0) {
+                        m_isOpen = true;
+                        return true;
+                    }
                 }
             }
 
@@ -76,7 +103,7 @@ namespace discord::platform {
             return m_isOpen;
         }
 
-        bool write(const void* data, size_t length) noexcept {
+        bool write(void const* data, size_t length) noexcept {
             if (!m_isOpen || m_socket == -1) {
                 return false;
             }

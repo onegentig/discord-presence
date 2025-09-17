@@ -23,7 +23,7 @@ namespace discord::platform {
         bool open() noexcept;
         bool close() noexcept;
 
-        bool write(const void* data, size_t length) const noexcept;
+        bool write(void const* data, size_t length) const noexcept;
         bool read(void* data, size_t length) noexcept;
 
         [[nodiscard]] bool isOpen() const noexcept { return m_isOpen; }
@@ -32,7 +32,7 @@ namespace discord::platform {
         // Unix methods for Wine compatibility
         bool openUnix() noexcept;
         bool closeUnix() noexcept;
-        bool writeUnix(const void* data, size_t length) const noexcept;
+        bool writeUnix(void const* data, size_t length) const noexcept;
         bool readUnix(void* data, size_t length) noexcept;
 
         HANDLE m_pipe = INVALID_HANDLE_VALUE;

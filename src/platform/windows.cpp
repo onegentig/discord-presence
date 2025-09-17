@@ -1,4 +1,5 @@
 #include "windows.hpp"
+#include <array>
 #include <WinSock2.h>
 #include <fmt/format.h>
 
@@ -16,10 +17,10 @@ namespace wine {
     }
 
     static std::string getTempPath() {
-        const wchar_t* envVars[] = {L"XDG_RUNTIME_DIR", L"TMPDIR", L"TMP", L"TEMP"};
+        wchar_t const* envVars[] = {L"XDG_RUNTIME_DIR", L"TMPDIR", L"TMP", L"TEMP"};
 
         wchar_t buffer[MAX_PATH];
-        for (const auto& var : envVars) {
+        for (auto const& var : envVars) {
             DWORD result = ::GetEnvironmentVariableW(var, buffer, MAX_PATH);
             if (result > 0 && result < MAX_PATH) {
                 int len = WideCharToMultiByte(CP_UTF8, 0, buffer, result, nullptr, 0, nullptr, nullptr);
@@ -30,6 +31,22 @@ namespace wine {
         }
 
         return "/tmp";
+    }
+
+    static std::array<std::string, 4> const& getCandidatePaths() {
+        static std::array<std::string, 4> paths = []() {
+            auto base = getTempPath();
+
+            std::array<std::string, 4> result = {
+                base,
+                fmt::format("{}/snap.discord", base),
+                fmt::format("{}/app/com.discordapp.Discord", base),
+                fmt::format("{}/app/com.discordapp.DiscordCanary", base),
+            };
+
+            return result;
+        }();
+        return paths;
     }
 
     static std::string convertWinePathToWindows(std::string const& unixPath) noexcept {
@@ -157,7 +174,7 @@ namespace discord::platform {
         return true;
     }
 
-    bool PipeConnection::write(const void* data, size_t length) const noexcept {
+    bool PipeConnection::write(void const* data, size_t length) const noexcept {
         if (length == 0) {
             return true;
         }
@@ -174,7 +191,7 @@ namespace discord::platform {
             return false;
         }
 
-        const auto bytesToWrite = static_cast<DWORD>(length);
+        auto const bytesToWrite = static_cast<DWORD>(length);
         DWORD bytesWritten = 0;
         if (!::WriteFile(m_pipe, data, bytesToWrite, &bytesWritten, nullptr)) {
             return false;
@@ -227,27 +244,27 @@ namespace discord::platform {
         u_long mode = 1;
         ::ioctlsocket(socket, FIONBIO, &mode);
 
-        for (int i = 0; i < 10; ++i) {
-            auto socketPath = wine::convertWinePathToWindows(fmt::format("{}\\discord-ipc-{}", basePath, i));
-            if (socketPath.empty()) {
-                return false;
-            }
+        for (auto& dir : wine::getCandidatePaths()) {
+            for (int i = 0; i < 10; ++i) {
+                auto socketPath = wine::convertWinePathToWindows(fmt::format("{}\\discord-ipc-{}", dir, i));
+                if (socketPath.empty()) {
+                    return false;
+                }
 
-            struct UnixAddr {
-                short sun_family;
-                char sun_path[108] = {};
-            };
+                struct UnixAddr {
+                    short sun_family;
+                    char sun_path[108] = {};
+                };
 
-            UnixAddr addr{};
-            addr.sun_family = AF_UNIX;
+                UnixAddr addr{AF_UNIX};
+                std::memcpy(addr.sun_path, socketPath.c_str(), std::min(socketPath.size(), sizeof(addr.sun_path) - 1));
 
-            std::memcpy(addr.sun_path, socketPath.c_str(), std::min(socketPath.size(), sizeof(addr.sun_path) - 1));
-
-            if (::connect(socket, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0) {
-                m_pipe = reinterpret_cast<HANDLE>(socket);
-                m_isOpen = true;
-                m_useWineFallback = true;
-                return true;
+                if (::connect(socket, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == 0) {
+                    m_pipe = reinterpret_cast<HANDLE>(socket);
+                    m_isOpen = true;
+                    m_useWineFallback = true;
+                    return true;
+                }
             }
         }
 
@@ -271,7 +288,7 @@ namespace discord::platform {
         return true;
     }
 
-    bool PipeConnection::writeUnix(const void* data, size_t length) const noexcept {
+    bool PipeConnection::writeUnix(void const* data, size_t length) const noexcept {
         if (!data) {
             return true;
         }
@@ -281,7 +298,7 @@ namespace discord::platform {
             return false;
         }
 
-        int bytesSent = ::send(socket, static_cast<const char*>(data), static_cast<int>(length), 0);
+        int bytesSent = ::send(socket, static_cast<char const*>(data), static_cast<int>(length), 0);
         if (bytesSent == SOCKET_ERROR) {
             return false;
         }
