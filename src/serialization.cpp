@@ -13,25 +13,25 @@ struct Timestamps {
 };
 
 struct Assets {
-    std::optional<const std::string*> large_image;
-    std::optional<const std::string*> large_text;
-    std::optional<const std::string*> small_image;
-    std::optional<const std::string*> small_text;
+    std::optional<std::string_view> large_image;
+    std::optional<std::string_view> large_text;
+    std::optional<std::string_view> small_image;
+    std::optional<std::string_view> small_text;
     constexpr Assets(
-        std::string const& large_image,
-        std::string const& large_text,
-        std::string const& small_image,
-        std::string const& small_text
+        std::string_view large_image,
+        std::string_view large_text,
+        std::string_view small_image,
+        std::string_view small_text
     ) noexcept {
-        if (!large_image.empty()) { this->large_image = &large_image; }
-        if (!large_text.empty()) { this->large_text = &large_text; }
-        if (!small_image.empty()) { this->small_image = &small_image; }
-        if (!small_text.empty()) { this->small_text = &small_text; }
+        if (!large_image.empty()) { this->large_image = large_image; }
+        if (!large_text.empty()) { this->large_text = large_text; }
+        if (!small_image.empty()) { this->small_image = small_image; }
+        if (!small_text.empty()) { this->small_text = small_text; }
     }
 };
 
 struct Party {
-    std::optional<const std::string*> id;
+    std::optional<std::string_view> id;
     std::optional<std::array<int, 2>> size;
     discord::PartyPrivacy privacy;
 
@@ -40,30 +40,30 @@ struct Party {
         int size, int max,
         discord::PartyPrivacy privacy
     ) noexcept : privacy(privacy) {
-        if (!id.empty()) { this->id = &id; }
+        if (!id.empty()) { this->id = id; }
         if (size && max) { this->size = std::array{size, max}; }
     }
 };
 
 struct Secrets {
-    std::optional<const std::string*> match;
-    std::optional<const std::string*> join;
-    std::optional<const std::string*> spectate;
+    std::optional<std::string_view> match;
+    std::optional<std::string_view> join;
+    std::optional<std::string_view> spectate;
     constexpr Secrets(
-        std::string const& match,
-        std::string const& join,
-        std::string const& spectate
+        std::string_view match,
+        std::string_view join,
+        std::string_view spectate
     ) noexcept {
-        if (!match.empty()) { this->match = &match; }
-        if (!join.empty()) { this->join = &join; }
-        if (!spectate.empty()) { this->spectate = &spectate; }
+        if (!match.empty()) { this->match = match; }
+        if (!join.empty()) { this->join = join; }
+        if (!spectate.empty()) { this->spectate = spectate; }
     }
 };
 
 struct Button {
-    const std::string* label;
-    const std::string* url;
-    constexpr Button(std::string const& label, std::string const& url) noexcept : label(&label), url(&url) {}
+    std::string_view label;
+    std::string_view url;
+    constexpr Button(std::string_view label, std::string_view url) noexcept : label(label), url(url) {}
 };
 
 template <>
@@ -119,8 +119,18 @@ template <>
 struct glz::meta<discord::Presence> {
     using T = discord::Presence;
     static constexpr auto value = object(
-        "state", [](auto&& self) { return self.getState(); },
-        "details", [](auto&& self) { return self.getDetails(); },
+        "state", [](auto&& self) -> std::optional<std::string_view> {
+            if (self.getState().empty()) {
+                return std::nullopt;
+            }
+            return self.getState();
+        },
+        "details", [](auto&& self) -> std::optional<std::string_view> {
+            if (self.getDetails().empty()) {
+                return std::nullopt;
+            }
+            return self.getDetails();
+        },
         "timestamps", [](auto&& self) -> std::optional<Timestamps> {
             auto start = self.getStartTimestamp();
             auto end = self.getEndTimestamp();
